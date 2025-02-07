@@ -7,6 +7,7 @@ RemoteDisplay::RemoteDisplay(int16_t w, int16_t h,Transport &transporter) : tran
     y = 0;
     wrap = true;
     rotation = 0;
+    charHeight = 8;
     font = NULL;
     fontSize = 1;
     memset(&message,0,sizeof(message));
@@ -411,6 +412,7 @@ void RemoteDisplay::setCursor(int16_t x, int16_t y) {
     message.a2.y = y;
     this->x = x;
     this->y = y;
+
     sendMessage();
 }
 
@@ -539,21 +541,28 @@ void RemoteDisplay::flush() {
     if (writeMessage.length > 0) {
         writeMessage.command = RD_WRITE;
         if (transporter.write(sizeof(writeMessage),&writeMessage)) {
+
             memset(&writeMessage,0,sizeof(writeMessage));
+
+            // Since flush can be called from sendmsg, we need
+            // to save off the current message before updating
+            // the cursor possition.
+            RD_ARGS        saveMessage;
+            memcpy(&saveMessage,&message,sizeof(message));
+            setCursor(x,y);
+            memcpy(&message,&saveMessage,sizeof(message));
         }
     }
 }
 
 size_t RemoteDisplay::write(uint8_t c) {
     writeMessage.data[writeMessage.length++] = c; 
-    if (writeMessage.length == sizeof(writeMessage.data)) {
-        flush();
-    }
 
     switch (c) {
        case '\n':
            x = 0;
            y = y + charHeight * fontSize;
+           writeMessage.data[writeMessage.length-1] = ' '; 
            flush();
            break;
        case '\r':
@@ -568,6 +577,11 @@ size_t RemoteDisplay::write(uint8_t c) {
            }
            break;
     }
+
+    if (writeMessage.length == sizeof(writeMessage.data)) {
+        flush();
+    }
+
     return (1);
 }
 
@@ -678,8 +692,8 @@ void RemoteDisplay::sendMessage(uint16_t size,const void *buffer,
             dataMessage.command = RD_DATA_MSG;
 
             loopMax = (size - index);
-            if (loopMax > sizeof(message.data)) {
-                loopMax = sizeof(message.data);
+            if (loopMax > sizeof(dataMessage.data)) {
+                loopMax = sizeof(dataMessage.data);
             }
 
             for (int i = 0; i < loopMax; i++) {

@@ -77,7 +77,7 @@ typedef union _RD_ARG {
     int16_t  height;
     uint16_t color;
     uint16_t radius;
-    uint16_t delta;
+    int16_t  delta;
     uint8_t  rotation;
     uint8_t  cornerName;
     uint8_t  size;
